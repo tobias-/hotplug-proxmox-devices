@@ -9,8 +9,8 @@ import (
 )
 
 type ScannedDevice struct {
-	vidPid string
-	busId  string
+	vidPid    string
+	busId     string
 	addressId string
 	portPath  string
 }
@@ -42,7 +42,6 @@ func scanUsbDevices() (scannedDevices []ScannedDevice) {
 			if err != nil {
 				log.Fatalf("Couldn't open %s because %s", pidPath, err)
 			}
-
 
 			addressPath := fmt.Sprintf("%s/%s/devnum", dirname, filename)
 			address, err := ioutil.ReadFile(addressPath)

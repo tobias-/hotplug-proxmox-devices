@@ -9,11 +9,7 @@ import (
 )
 
 type TargetDevice struct {
-	//vendorId  string
-	//productId string
-	vidPid    string
-	//busId     string
-	//addressId string
+	vidPid string
 }
 
 var opts struct {
@@ -34,14 +30,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	positions := locationOptsToStructs()
-	targetDevices := parseOptsTargetDevices()
-
-	// Get list of all interesting devices
-	foundDevices := scanUsbDevices()
+	optsPositions := locationOptsToStructs()
+	optsTargetDevices := parseOptsTargetDevices()
+	optsDetectDevice := opts.DetectDevice
 
 	// Connect all
-	for idx, position := range positions {
+	for idx, position := range optsPositions {
 		tmp, err := Connect(position.vmId)
 		if err != nil {
 			log.Printf("Could not connect to vmid %s", position.vmId)
@@ -49,15 +43,25 @@ func main() {
 			//defer func(fromMonitor *qmp.SocketMonitor) {
 			//	_ = fromMonitor.Disconnect()
 			//}(tmp)
-			positions[idx].monitor = tmp
+			optsPositions[idx].monitor = tmp
 		}
 	}
+
+	detectAndReconnect(optsDetectDevice, optsPositions, optsTargetDevices)
+	//runOnDeviceChanged(func() {
+	//	detectAndReconnect(optsDetectDevice, optsPositions, optsTargetDevices)
+	//})
+}
+
+func detectAndReconnect(optsDetectDevice string, optsPositions []locationStruct, optsTargetDevices []TargetDevice) {
+	// Get list of all interesting devices
+	foundDevices := scanUsbDevices()
 
 	// Find where the device should be connected
 	var targetPositionStruct locationStruct
 	for _, device := range foundDevices {
-		if device.vidPid == opts.DetectDevice {
-			for _, position := range positions {
+		if device.vidPid == optsDetectDevice {
+			for _, position := range optsPositions {
 				if position.busId == device.busId && position.portPath == device.portPath {
 					targetPositionStruct = position
 					break
@@ -72,7 +76,7 @@ func main() {
 		log.Fatalf("There is no connection for target VM. It may not even have been found.")
 	}
 
-	ReconnectDevicesToCorrectVM(positions, targetPositionStruct, targetDevices, foundDevices)
+	ReconnectDevicesToCorrectVM(optsPositions, targetPositionStruct, optsTargetDevices, foundDevices)
 }
 
 func parseOptsTargetDevices() []TargetDevice {
@@ -84,7 +88,7 @@ func parseOptsTargetDevices() []TargetDevice {
 			log.Fatalf("%s is not valid format", device)
 		}
 		targetDevices[idx] = TargetDevice{
-			vidPid:    device,
+			vidPid: device,
 		}
 	}
 	return targetDevices
