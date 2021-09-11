@@ -68,14 +68,16 @@ func Connect(from string) (monitor *qmp.SocketMonitor, err error) {
 }
 
 func ReconnectDevicesToCorrectVM(positions []locationStruct, targetPositionStruct locationStruct, targetDevices []TargetDevice, scannedDevices []ScannedDevice) {
-	disconnectDevices(positions, targetPositionStruct, targetDevices)
+	disconnectDevices(positions, targetDevices)
+	// Give qemu a second to settle before connecting
+	time.Sleep(time.Duration(1e9))
 	connectDevices(targetPositionStruct, targetDevices, scannedDevices)
 }
 
-func disconnectDevices(positions []locationStruct, targetPositionStruct locationStruct, targetDevices []TargetDevice) {
+func disconnectDevices(positions []locationStruct, targetDevices []TargetDevice) {
 	// Disconnect all target devices from other hosts
 	for _, position := range positions {
-		if position.monitor != nil && targetPositionStruct != position {
+		if position.monitor != nil {
 			for idx := range targetDevices {
 				_, err := position.monitor.Run([]byte(fmt.Sprintf(`{"execute":"device_del", "arguments":{"id":"auto_%d"}}`, idx)))
 				if err != nil {
@@ -109,7 +111,7 @@ func connectDevices(targetPositionStruct locationStruct, targetDevices []TargetD
 				}
 				_, err = targetPositionStruct.monitor.Run(bytes)
 				if err != nil {
-					log.Fatalf("Could not connect device %s (auto_%d) to %s", targetDevice.vidPid, idx, targetPositionStruct.vmId)
+					log.Printf("Could not connect device %s (auto_%d) to %s, %s", targetDevice.vidPid, idx, targetPositionStruct.vmId, err)
 				} else {
 					log.Printf("Connected %s to auto_%d on VM: %s", targetDevice.vidPid, idx, targetPositionStruct.vmId)
 				}
