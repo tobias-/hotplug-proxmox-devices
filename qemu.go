@@ -6,6 +6,7 @@ import (
 	"github.com/digitalocean/go-qemu/qmp"
 	"github.com/google/gousb"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -67,14 +68,20 @@ func Connect(from string) (monitor *qmp.SocketMonitor, err error) {
 	return
 }
 
-func ReconnectDevicesToCorrectVM(positions []locationStruct, targetPositionStruct locationStruct, targetDevices []TargetDevice, scannedDevices []ScannedDevice) {
-	disconnectDevices(positions, targetDevices)
+func ReconnectDevicesToCorrectVM(
+	positions []locationStruct,
+	targetPositionStruct locationStruct,
+	targetDevices []TargetDevice,
+	scannedDevices []ScannedDevice,
+	reverseMatch bool,
+) {
+	disconnectDevices(positions, targetDevices, reverseMatch)
 	// Give qemu a second to settle before connecting
 	time.Sleep(time.Duration(1e9))
-	connectDevices(targetPositionStruct, targetDevices, scannedDevices)
+	connectDevices(targetPositionStruct, targetDevices, scannedDevices, reverseMatch)
 }
 
-func disconnectDevices(positions []locationStruct, targetDevices []TargetDevice) {
+func disconnectDevices(positions []locationStruct, targetDevices []TargetDevice, reverseMatch bool) {
 	// Disconnect all target devices from other hosts
 	for _, position := range positions {
 		if position.monitor != nil {
@@ -85,18 +92,23 @@ func disconnectDevices(positions []locationStruct, targetDevices []TargetDevice)
 						log.Fatalf("Could not disconnect auto_%d from %s", idx, position.vmId)
 					}
 				} else {
-					log.Printf("Successfully disconnected device auto_%d\n", idx)
+					log.Printf("Successfully disconnected device auto_%d from %s\n", idx, position.vmId)
 				}
 			}
 		}
 	}
 }
 
-func connectDevices(targetPositionStruct locationStruct, targetDevices []TargetDevice, scannedDevices []ScannedDevice) {
+func connectDevices(
+	targetPositionStruct locationStruct,
+	targetDevices []TargetDevice,
+	scannedDevices []ScannedDevice,
+	reverseMatch bool,
+) {
 	// Connect to the target host
 	for idx, targetDevice := range targetDevices {
 		for _, scannedDevice := range scannedDevices {
-			if scannedDevice.vidPid == targetDevice.vidPid {
+			if strings.HasPrefix(scannedDevice.vidPid, targetDevice.vidPid) != reverseMatch {
 				bytes, err := json.Marshal(CommandWithArgs{
 					Execute: "device_add",
 					Arguments: DeviceAddArguments{

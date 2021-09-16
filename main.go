@@ -15,7 +15,8 @@ type TargetDevice struct {
 var opts struct {
 	DetectDevice  string   `short:"d" long:"detect-device" description:"Device used to detect where which input is active"`
 	Positions     []string `short:"p" long:"detect-device-bud" description:"Map VMid to bus of device. In the format of vmid:bus.port[s] e.g. '100:5-2.1.1'. Should be repeated"`
-	TargetDevices []string `short:"t" long:"target-device" description:"Device(s) to move. Should be repeated. In the format of '1234:abcd'"`
+	TargetDevices []string `short:"t" long:"target-device" description:"Device(s) to move. Should be repeated. In the format of '1234:abcd' or '1234:'"`
+	ReversedMatch bool     `short:"r" long:"reverse" description:"Reverse match so that all devices not listed will be moved"`
 }
 
 type locationStruct struct {
@@ -47,13 +48,13 @@ func main() {
 		}
 	}
 
-	detectAndReconnect(optsDetectDevice, optsPositions, optsTargetDevices)
+	detectAndReconnect(optsDetectDevice, optsPositions, optsTargetDevices, opts.ReversedMatch)
 	//runOnDeviceChanged(func() {
 	//	detectAndReconnect(optsDetectDevice, optsPositions, optsTargetDevices)
 	//})
 }
 
-func detectAndReconnect(optsDetectDevice string, optsPositions []locationStruct, optsTargetDevices []TargetDevice) {
+func detectAndReconnect(optsDetectDevice string, optsPositions []locationStruct, optsTargetDevices []TargetDevice, optsReversedMatch bool) {
 	// Get list of all interesting devices
 	foundDevices := scanUsbDevices()
 
@@ -76,12 +77,12 @@ func detectAndReconnect(optsDetectDevice string, optsPositions []locationStruct,
 		log.Fatalf("There is no connection for target VM. It may not even have been found.")
 	}
 
-	ReconnectDevicesToCorrectVM(optsPositions, targetPositionStruct, optsTargetDevices, foundDevices)
+	ReconnectDevicesToCorrectVM(optsPositions, targetPositionStruct, optsTargetDevices, foundDevices, optsReversedMatch)
 }
 
 func parseOptsTargetDevices() []TargetDevice {
 	targetDevices := make([]TargetDevice, len(opts.TargetDevices))
-	regex := regexp.MustCompile("^([0-9a-f]{4}):([0-9a-f]{4})$")
+	regex := regexp.MustCompile("^([0-9a-f]{4}):([0-9a-f]{4})?$")
 	for idx, device := range opts.TargetDevices {
 
 		if !regex.MatchString(device) {
