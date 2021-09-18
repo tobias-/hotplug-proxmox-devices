@@ -95,14 +95,10 @@ func ReconnectDevicesToCorrectVM(
 func disconnectDevices(positions []locationStruct, targetDevices []TargetDevice, devices map[string]ConnectedDevice, targetPositionStruct locationStruct) {
 	// Disconnect all target devices from other hosts
 	for _, position := range positions {
-		if position.monitor != nil {
-			for idx, targetDevice := range targetDevices {
-				deviceName := fmt.Sprintf("auto_%d", idx)
-				if position == targetPositionStruct && devices[deviceName].connectedName != "" {
-					continue
-				}
-				log.Printf("Disconnecting device %s from vm %s %s", targetDevice.vidPid, position.vmId, deviceName)
-				disconnectDevice(position, deviceName)
+		if position.monitor != nil && targetPositionStruct != position {
+			for _, device := range ListConnectedDevices(position) {
+				log.Printf("Disconnecting device %s from vm %s (host connection: %s)", device.connectedName, position.vmId, device.busAndPort)
+				disconnectDevice(position, device.connectedName)
 				time.Sleep(time.Duration(1e9))
 			}
 		}
@@ -143,6 +139,7 @@ func connectDevices(targetPositionStruct locationStruct, targetDevices []TargetD
 			if strings.HasPrefix(scannedDevice.vidPid, targetDevice.vidPid) {
 				deviceName := fmt.Sprintf("auto_%d", idx)
 				if devices[deviceName].connectedName != "" {
+					log.Printf("%s is already connected to %s as %s", scannedDevice.vidPid, targetPositionStruct.vmId, deviceName)
 					continue
 				}
 				log.Printf("Connecting device %s to %s", scannedDevice.vidPid, deviceName)
