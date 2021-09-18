@@ -83,15 +83,12 @@ func ReconnectDevicesToCorrectVM(
 	reverseMatch bool,
 ) {
 	mappedDevices := make(map[string]ConnectedDevice)
-	for _, device := range ListConnectedDevices(targetPositionStruct.monitor) {
+	for _, device := range ListConnectedDevices(targetPositionStruct) {
 		if device.connectedName != "" {
 			mappedDevices[device.connectedName] = device
 		}
 	}
-	time.Sleep(time.Duration(60e9))
 	disconnectDevices(positions, targetDevices, mappedDevices, targetPositionStruct)
-	// Give qemu a couple of seconds to settle before connecting
-	time.Sleep(time.Duration(3e9))
 	connectDevices(targetPositionStruct, targetDevices, scannedDevices, mappedDevices)
 }
 
@@ -106,6 +103,7 @@ func disconnectDevices(positions []locationStruct, targetDevices []TargetDevice,
 				}
 				log.Printf("Disconnecting device %s from vm %s %s", targetDevice.vidPid, position.vmId, deviceName)
 				disconnectDevice(position, deviceName)
+				time.Sleep(time.Duration(1e9))
 			}
 		}
 	}
@@ -233,8 +231,10 @@ func QomGetString(monitor *qmp.SocketMonitor, path string, property string) (val
 }
 
 func ListConnectedDevices(
-	monitor *qmp.SocketMonitor,
+	targetPositionStruct locationStruct,
 ) (connectedDevices []ConnectedDevice) {
+	monitor := targetPositionStruct.monitor
+	vmid := targetPositionStruct.vmId
 	path := "/machine/q35/pcie.0"
 	for _, usbRootDevice := range QomList(monitor, path) {
 		if !strings.Contains(usbRootDevice.Type, "usb") {
@@ -258,7 +258,7 @@ func ListConnectedDevices(
 
 				connectedName := otherPath[strings.LastIndex(otherPath, "/")+1:]
 				busAndPort := fmt.Sprintf("%d-%s", hostBus, hostPort)
-				log.Printf("Found device %s @%s with name %s", devicePath, busAndPort, connectedName)
+				log.Printf("Found device %s on %s @%s with name %s", devicePath, vmid, busAndPort, connectedName)
 
 				connectedDevices = append(
 					connectedDevices,
