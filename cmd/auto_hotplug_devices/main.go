@@ -3,14 +3,11 @@ package main
 import (
 	"github.com/digitalocean/go-qemu/qmp"
 	"github.com/jessevdk/go-flags"
+	"hotplugDevices/lib"
 	"log"
 	"os"
 	"regexp"
 )
-
-type TargetDevice struct {
-	vidPid string
-}
 
 var opts struct {
 	DetectDevice  string   `short:"d" long:"detect-device" description:"Device used to detect where which input is active"`
@@ -19,11 +16,11 @@ var opts struct {
 	ReversedMatch bool     `short:"r" long:"reverse" description:"Reverse match so that all devices not listed will be moved"`
 }
 
-type locationStruct struct {
-	monitor  *qmp.SocketMonitor
-	vmId     string
-	busId    string
-	portPath string
+type LocationStruct struct {
+	Monitor  *qmp.SocketMonitor
+	VmId     string
+	BusId    string
+	PortPath string
 }
 
 func main() {
@@ -37,14 +34,14 @@ func main() {
 
 	// Connect all
 	for idx, position := range optsPositions {
-		tmp, err := Connect(position.vmId)
+		tmp, err := lib.Connect(position.VmId)
 		if err != nil {
-			log.Printf("Could not connect to vmid %s", position.vmId)
+			log.Printf("Could not connect to vmid %s", position.VmId)
 		} else {
 			//defer func(fromMonitor *qmp.SocketMonitor) {
 			//	_ = fromMonitor.Disconnect()
 			//}(tmp)
-			optsPositions[idx].monitor = tmp
+			optsPositions[idx].Monitor = tmp
 		}
 	}
 
@@ -54,59 +51,76 @@ func main() {
 	//})
 }
 
-func detectAndReconnect(optsDetectDevice string, optsPositions []locationStruct, optsTargetDevices []TargetDevice, optsReversedMatch bool) {
+func detectAndReconnect(optsDetectDevice string, optsPositions []LocationStruct, optsTargetDevices []lib.TargetDevice, optsReversedMatch bool) {
 	// Get list of all interesting devices
-	foundDevices := scanUsbDevices()
+	foundDevices := lib.ScanUsbDevices()
 
 	// Find where the device should be connected
-	var targetPositionStruct locationStruct
+	var targetPositionStruct LocationStruct
 	for _, device := range foundDevices {
-		if device.vidPid == optsDetectDevice {
+		if device.VidPid == optsDetectDevice {
 			for _, position := range optsPositions {
-				if position.busId == device.busId && position.portPath == device.portPath {
+				if position.BusId == device.BusId && position.PortPath == device.PortPath {
 					targetPositionStruct = position
 					break
 				}
 			}
-			if targetPositionStruct.monitor == nil {
-				log.Fatalf("Failed to find device. It was on %s-%s, but that's not among the options", device.busId, device.portPath)
+			if targetPositionStruct.Monitor == nil {
+				log.Fatalf("Failed to find device. It was on %s-%s, but that's not among the options", device.BusId, device.PortPath)
 			}
 		}
 	}
-	if targetPositionStruct.monitor == nil {
+	if targetPositionStruct.Monitor == nil {
 		log.Fatalf("There is no connection for target VM. It may not even have been found.")
 	}
 
-	ReconnectDevicesToCorrectVM(optsPositions, targetPositionStruct, optsTargetDevices, foundDevices, optsReversedMatch)
+	namedConnections := make([]lib.NamedConnection, len(opts.TargetDevices))
+	for idx, device := range optsPositions {
+		namedConnections[idx] = lib.NamedConnection{
+			VmId:    device.VmId,
+			Monitor: device.Monitor,
+		}
+	}
+
+	lib.ReconnectDevicesToCorrectVM(
+		namedConnections,
+		lib.NamedConnection{
+			VmId:    targetPositionStruct.VmId,
+			Monitor: targetPositionStruct.Monitor,
+		},
+		optsTargetDevices,
+		foundDevices,
+		optsReversedMatch,
+	)
 }
 
-func parseOptsTargetDevices() []TargetDevice {
-	targetDevices := make([]TargetDevice, len(opts.TargetDevices))
+func parseOptsTargetDevices() []lib.TargetDevice {
+	targetDevices := make([]lib.TargetDevice, len(opts.TargetDevices))
 	regex := regexp.MustCompile("^([0-9a-f]{4}):([0-9a-f]{4})?$")
 	for idx, device := range opts.TargetDevices {
 
 		if !regex.MatchString(device) {
 			log.Fatalf("%s is not valid format", device)
 		}
-		targetDevices[idx] = TargetDevice{
-			vidPid: device,
+		targetDevices[idx] = lib.TargetDevice{
+			VidPid: device,
 		}
 	}
 	return targetDevices
 }
 
-func locationOptsToStructs() (positions []locationStruct) {
+func locationOptsToStructs() (positions []LocationStruct) {
 	regex := regexp.MustCompile("^([0-9]+):([0-9]+)-([0-9.]+)$")
 	for _, position := range opts.Positions {
 		match := regex.FindStringSubmatch(position)
 		if len(match) == 4 {
 			positions = append(
 				positions,
-				locationStruct{
-					monitor:  nil,
-					vmId:     match[1],
-					busId:    match[2],
-					portPath: match[3],
+				LocationStruct{
+					Monitor:  nil,
+					VmId:     match[1],
+					BusId:    match[2],
+					PortPath: match[3],
 				},
 			)
 		}

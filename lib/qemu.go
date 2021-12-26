@@ -1,10 +1,11 @@
-package main
+package lib
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/digitalocean/go-qemu/qmp"
 	"log"
+	"math/rand"
 	"strings"
 	"time"
 )
@@ -40,6 +41,15 @@ type QomListResponse struct {
 	Return []QomListProperties `json:"return"`
 }
 
+type TargetDevice struct {
+	VidPid string
+}
+
+type NamedConnection struct {
+	Monitor *qmp.SocketMonitor
+	VmId    string
+}
+
 func status(monitor *qmp.SocketMonitor) (err error) {
 	cmd := []byte(`{ "execute": "query-status" }`)
 	var raw []byte
@@ -57,10 +67,11 @@ func status(monitor *qmp.SocketMonitor) (err error) {
 	return nil
 }
 
-func Connect(from string) (monitor *qmp.SocketMonitor, err error) {
-	monitor, err = qmp.NewSocketMonitor("unix", "/var/run/qemu-server/"+from+".qmp", 2*time.Second)
+// Connect to a vm's qemu socket
+func Connect(vmId string) (monitor *qmp.SocketMonitor, err error) {
+	monitor, err = qmp.NewSocketMonitor("unix", "/var/run/qemu-server/"+vmId+".qmp", 2*time.Second)
 	if err != nil {
-		log.Printf("Got error connecting to %s: %s", from, err)
+		log.Printf("Got error connecting to %s: %s", vmId, err)
 		return
 	}
 	if monitor.Connect() != nil {
@@ -76,8 +87,8 @@ func Connect(from string) (monitor *qmp.SocketMonitor, err error) {
 }
 
 func ReconnectDevicesToCorrectVM(
-	positions []locationStruct,
-	targetPositionStruct locationStruct,
+	positions []NamedConnection,
+	targetPositionStruct NamedConnection,
 	targetDevices []TargetDevice,
 	scannedDevices []ScannedDevice,
 	reverseMatch bool,
@@ -89,15 +100,15 @@ func ReconnectDevicesToCorrectVM(
 		}
 	}
 	disconnectDevices(positions, targetDevices, mappedDevices, targetPositionStruct)
-	connectDevices(targetPositionStruct, targetDevices, scannedDevices, mappedDevices)
+	ConnectDevices(targetPositionStruct, targetDevices, scannedDevices, mappedDevices)
 }
 
-func disconnectDevices(positions []locationStruct, targetDevices []TargetDevice, devices map[string]ConnectedDevice, targetPositionStruct locationStruct) {
+func disconnectDevices(positions []NamedConnection, targetDevices []TargetDevice, devices map[string]ConnectedDevice, targetPositionStruct NamedConnection) {
 	// Disconnect all target devices from other hosts
 	for _, position := range positions {
-		if position.monitor != nil && targetPositionStruct != position {
+		if position.Monitor != nil && targetPositionStruct != position {
 			for _, device := range ListConnectedDevices(position) {
-				log.Printf("Disconnecting device %s from vm %s (host connection: %s)", device.connectedName, position.vmId, device.busAndPort)
+				log.Printf("Disconnecting device %s from vm %s (host connection: %s)", device.connectedName, position.VmId, device.busAndPort)
 				disconnectDevice(position, device.connectedName)
 				time.Sleep(time.Duration(1e9))
 			}
@@ -105,14 +116,14 @@ func disconnectDevices(positions []locationStruct, targetDevices []TargetDevice,
 	}
 }
 
-func disconnectDevice(position locationStruct, deviceName string) {
-	_, err := position.monitor.Run([]byte(fmt.Sprintf(`{"execute":"device_del", "arguments":{"id":"%s"}}`, deviceName)))
+func disconnectDevice(position NamedConnection, deviceName string) {
+	_, err := position.Monitor.Run([]byte(fmt.Sprintf(`{"execute":"device_del", "arguments":{"id":"%s"}}`, deviceName)))
 	if err != nil {
 		if err.Error() != fmt.Sprintf("Device '%s' not found", deviceName) {
-			log.Fatalf("Could not disconnect %s from %s", deviceName, position.vmId)
+			log.Fatalf("Could not disconnect %s from %s", deviceName, position.VmId)
 		}
 	} else {
-		log.Printf("Successfully disconnected device %s from %s\n", deviceName, position.vmId)
+		log.Printf("Successfully disconnected device %s from %s\n", deviceName, position.VmId)
 	}
 }
 
@@ -132,25 +143,36 @@ func QmpRun(monitor *qmp.SocketMonitor, args CommandWithArgs, v interface{}) (er
 	return
 }
 
-func connectDevices(targetPositionStruct locationStruct, targetDevices []TargetDevice, scannedDevices []ScannedDevice, devices map[string]ConnectedDevice) {
+func ConnectDevices(targetPositionStruct NamedConnection, targetDevices []TargetDevice, scannedDevices []ScannedDevice, devices map[string]ConnectedDevice) {
 	// Connect to the target host
 	for idx, targetDevice := range targetDevices {
 		for _, scannedDevice := range scannedDevices {
-			if strings.HasPrefix(scannedDevice.vidPid, targetDevice.vidPid) {
+			if strings.HasPrefix(scannedDevice.VidPid, targetDevice.VidPid) {
 				deviceName := fmt.Sprintf("auto_%d", idx)
 				if devices[deviceName].connectedName != "" {
-					log.Printf("%s is already connected to %s as %s", scannedDevice.vidPid, targetPositionStruct.vmId, deviceName)
+					log.Printf("%s is already connected to %s as %s", scannedDevice.VidPid, targetPositionStruct.VmId, deviceName)
 					continue
 				}
-				log.Printf("Connecting device %s to %s", scannedDevice.vidPid, deviceName)
+				log.Printf("Connecting device %s to %s", scannedDevice.VidPid, deviceName)
 				time.Sleep(time.Duration(5e9))
-				connectDevice(targetPositionStruct, deviceName, scannedDevice.busId, scannedDevice.portPath, targetDevice, idx)
+				connectDevice(targetPositionStruct, deviceName, scannedDevice.BusId, scannedDevice.PortPath, targetDevice, idx)
 			}
 		}
 	}
 }
 
-func connectDevice(targetPositionStruct locationStruct, deviceName string, hostBus string, hostPort string, targetDevice TargetDevice, idx int) {
+func ConnectDevice(connection NamedConnection, targetDevice TargetDevice, scannedDevices []ScannedDevice, id int) {
+	for _, scannedDevice := range scannedDevices {
+		if strings.HasPrefix(scannedDevice.VidPid, targetDevice.VidPid) {
+			deviceName := fmt.Sprintf("auto_%d", rand.Int31n(8192))
+			log.Printf("Connecting device %s to %s", scannedDevice.VidPid, deviceName)
+			time.Sleep(time.Duration(5e9))
+			connectDevice(connection, deviceName, scannedDevice.BusId, scannedDevice.PortPath, targetDevice, id)
+		}
+	}
+}
+
+func connectDevice(connection NamedConnection, deviceName string, hostBus string, hostPort string, targetDevice TargetDevice, idx int) {
 	bytes, err := json.Marshal(CommandWithArgs{
 		Execute: "device_add",
 		Arguments: map[string]string{
@@ -163,18 +185,18 @@ func connectDevice(targetPositionStruct locationStruct, deviceName string, hostB
 	if err != nil {
 		log.Fatalf("Could not serialize %s", err)
 	}
-	_, err = targetPositionStruct.monitor.Run(bytes)
+	_, err = connection.Monitor.Run(bytes)
 	if err != nil {
-		log.Printf("Could not connect device %s (auto_%d) to %s, %s", targetDevice.vidPid, idx, targetPositionStruct.vmId, err)
+		log.Printf("Could not connect device %s (auto_%d) to %s, %s", targetDevice.VidPid, idx, connection.VmId, err)
 	} else {
-		log.Printf("Connected %s to auto_%d on VM: %s", targetDevice.vidPid, idx, targetPositionStruct.vmId)
+		log.Printf("Connected %s to auto_%d on VM: %s", targetDevice.VidPid, idx, connection.VmId)
 	}
 }
 
-func QomList(monitor *qmp.SocketMonitor, path string) (properties []QomListProperties) {
+func QomList(connection NamedConnection, path string) (properties []QomListProperties) {
 	var response QomListResponse
 	err := QmpRun(
-		monitor,
+		connection.Monitor,
 		CommandWithArgs{
 			Execute: "qom-list",
 			Arguments: map[string]string{
@@ -184,15 +206,15 @@ func QomList(monitor *qmp.SocketMonitor, path string) (properties []QomListPrope
 		&response,
 	)
 	if err != nil {
-		log.Fatalf("Could not get qom-list %s due to %s", path, err)
+		log.Fatalf("Could not get qom-list %s from %s due to %s", path, connection.VmId, err)
 	}
 	return response.Return
 }
 
-func QomGetInt(monitor *qmp.SocketMonitor, path string, property string) (value int64) {
+func QomGetInt(connection NamedConnection, path string, property string) (value int64) {
 	response := make(map[string]int64)
 	err := QmpRun(
-		monitor,
+		connection.Monitor,
 		CommandWithArgs{
 			Execute: "qom-get",
 			Arguments: map[string]string{
@@ -203,15 +225,15 @@ func QomGetInt(monitor *qmp.SocketMonitor, path string, property string) (value 
 		&response,
 	)
 	if err != nil {
-		log.Fatalf("Could not get property %s %s due to %s", path, property, err)
+		log.Fatalf("Could not get property %s %s from %s due to %s", path, property, connection.VmId, err)
 	}
 	return response["return"]
 }
 
-func QomGetString(monitor *qmp.SocketMonitor, path string, property string) (value string) {
+func QomGetString(connection NamedConnection, path string, property string) (value string) {
 	response := make(map[string]string)
 	err := QmpRun(
-		monitor,
+		connection.Monitor,
 		CommandWithArgs{
 			Execute: "qom-get",
 			Arguments: map[string]string{
@@ -222,40 +244,36 @@ func QomGetString(monitor *qmp.SocketMonitor, path string, property string) (val
 		&response,
 	)
 	if err != nil {
-		log.Fatalf("Could not get property %s %s due to %s", path, property, err)
+		log.Fatalf("Could not get property %s %s from %s due to %s", path, property, connection.VmId, err)
 	}
 	return response["return"]
 }
 
-func ListConnectedDevices(
-	targetPositionStruct locationStruct,
-) (connectedDevices []ConnectedDevice) {
-	monitor := targetPositionStruct.monitor
-	vmid := targetPositionStruct.vmId
+func ListConnectedDevices(connection NamedConnection) (connectedDevices []ConnectedDevice) {
 	path := "/machine/q35/pcie.0"
-	for _, usbRootDevice := range QomList(monitor, path) {
+	for _, usbRootDevice := range QomList(connection, path) {
 		if !strings.Contains(usbRootDevice.Type, "usb") {
 			continue
 		}
 		rootUsbPath := path + "/" + usbRootDevice.Name
-		for _, usbBus := range QomList(monitor, rootUsbPath) {
+		for _, usbBus := range QomList(connection, rootUsbPath) {
 			if usbBus.Type != "child<usb-bus>" {
 				continue
 			}
 			busPath := rootUsbPath + "/" + usbBus.Name
-			for _, connectedUsbDevice := range QomList(monitor, busPath) {
+			for _, connectedUsbDevice := range QomList(connection, busPath) {
 				if connectedUsbDevice.Type != "link<usb-host>" {
 					continue
 				}
 				devicePath := busPath + "/" + connectedUsbDevice.Name
-				otherPath := QomGetString(monitor, busPath, connectedUsbDevice.Name)
+				otherPath := QomGetString(connection, busPath, connectedUsbDevice.Name)
 
-				hostBus := QomGetInt(monitor, devicePath, "hostbus")
-				hostPort := QomGetString(monitor, devicePath, "hostport")
+				hostBus := QomGetInt(connection, devicePath, "hostbus")
+				hostPort := QomGetString(connection, devicePath, "hostport")
 
 				connectedName := otherPath[strings.LastIndex(otherPath, "/")+1:]
 				busAndPort := fmt.Sprintf("%d-%s", hostBus, hostPort)
-				log.Printf("Found device %s on %s @%s with name %s", devicePath, vmid, busAndPort, connectedName)
+				log.Printf("Found device %s on %s @%s with name %s", devicePath, connection.VmId, busAndPort, connectedName)
 
 				connectedDevices = append(
 					connectedDevices,
