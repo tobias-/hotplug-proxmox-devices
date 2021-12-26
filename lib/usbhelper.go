@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"fmt"
@@ -9,17 +9,17 @@ import (
 )
 
 type ScannedDevice struct {
-	vidPid    string
-	busId     string
-	addressId string
-	portPath  string
+	VidPid    string
+	BusId     string
+	AddressId string
+	PortPath  string
 }
 
-func trim(str []byte) (trimmed string) {
+func Trim(str []byte) (trimmed string) {
 	return strings.Trim(string(str), "\n")
 }
 
-func scanUsbDevices() (scannedDevices []ScannedDevice) {
+func ScanUsbDevices() (scannedDevices []ScannedDevice) {
 	dirname := "/sys/bus/usb/devices"
 	dir, err := ioutil.ReadDir(dirname)
 	if err != nil {
@@ -52,10 +52,10 @@ func scanUsbDevices() (scannedDevices []ScannedDevice) {
 			scannedDevices = append(
 				scannedDevices,
 				ScannedDevice{
-					vidPid:    fmt.Sprintf("%s:%s", trim(vid), trim(pid)),
-					busId:     find[1],
-					addressId: trim(address),
-					portPath:  find[2],
+					VidPid:    fmt.Sprintf("%s:%s", Trim(vid), Trim(pid)),
+					BusId:     find[1],
+					AddressId: Trim(address),
+					PortPath:  find[2],
 				},
 			)
 		}

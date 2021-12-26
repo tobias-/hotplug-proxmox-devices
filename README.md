@@ -38,8 +38,8 @@ The format is `<VMID>:<Bus>-<Port>`, i.e. `100:3-6.1.4`. Switch the KVM-switch t
 ```shell
 git clone https://github.com/tobias-/hotplug-proxmox-devices
 cd hotplug-proxmox-devices
-go build -o hotplugDevices *.go
-cp hotplugDevices /usr/local/sbin/
+go build -o hotplug-proxmox-devices *.go
+cp hotplug-proxmox-devices /usr/local/sbin/
 ```
 
 ### Setting up script
@@ -52,7 +52,7 @@ I've put the following script into `/usr/local/sbin/triggerKvmUpdate.sh`
 #!/bin/bash -eux
 # Allow the /sys/ directory to settle before running this.
 sleep 2
-/usr/local/sbin/hotplugDevices -d 1a86:7523 -p 100:5-2.4 -p 101:3-6.1.4 -t 0a81:0103
+/usr/local/sbin/hotplug-proxmox-devices -d 1a86:7523 -p 100:5-2.4 -p 101:3-6.1.4 -t 0a81:0103
 ```
 
 (Don't forget to `chmod u+x /usr/local/sbin/triggerKvmUpdate.sh`)
