@@ -10,7 +10,7 @@ import (
 )
 
 var opts struct {
-	Device []string `short:"d" long:"device" description:"Device(s) to connect"`
+	Device []string `short:"d" long:"device" description:"Device to connect (repeatable)"`
 	VmId   string   `short:"m" long:"vmid" description:"VmId to connect device to"`
 }
 

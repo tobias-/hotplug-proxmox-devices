@@ -1,4 +1,4 @@
-module hotplugDevices
+module hotplug-proxmox-devices
 
 go 1.13
 
