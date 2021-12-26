@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/digitalocean/go-qemu/qmp"
 	"github.com/jessevdk/go-flags"
-	"hotplugDevices/lib"
+	"hotplug-proxmox-devices/lib"
 	"log"
 	"os"
 	"regexp"

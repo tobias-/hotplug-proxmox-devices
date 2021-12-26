@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/jessevdk/go-flags"
-	"hotplugDevices/lib"
+	"hotplug-proxmox-devices/lib"
 	"log"
 	"math/rand"
 	"os"
