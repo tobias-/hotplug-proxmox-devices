@@ -30,9 +30,9 @@ func ListConnectedDevicesWithVidPid(connection NamedConnection) (ConnectedDevice
 
 		devices[idx] = ConnectedDeviceWithVidPid{
 			ConnectedName: connectedDevices[idx].ConnectedName,
-			QomTreePath:   connectedDevices[idx].ConnectedName,
-			OtherPath:     connectedDevices[idx].ConnectedName,
-			BusAndPort:    connectedDevices[idx].ConnectedName,
+			QomTreePath:   connectedDevices[idx].QomTreePath,
+			OtherPath:     connectedDevices[idx].OtherPath,
+			BusAndPort:    connectedDevices[idx].BusAndPort,
 			VidPid:        foundScannedDevice.VidPid,
 			Product:       foundScannedDevice.Product,
 		}

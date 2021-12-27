@@ -103,20 +103,20 @@ func ReconnectDevicesToCorrectVM(
 	ConnectDevices(targetPositionStruct, targetDevices, scannedDevices, mappedDevices)
 }
 
-func disconnectDevices(positions []NamedConnection, targetDevices []TargetDevice, devices map[string]ConnectedDevice, targetPositionStruct NamedConnection) {
+func disconnectDevices(clearedConnections []NamedConnection, targetDevices []TargetDevice, devices map[string]ConnectedDevice, targetPositionStruct NamedConnection) {
 	// Disconnect all target devices from other hosts
-	for _, position := range positions {
+	for _, position := range clearedConnections {
 		if position.Monitor != nil && targetPositionStruct != position {
 			for _, device := range ListConnectedDevices(position) {
 				log.Printf("Disconnecting device %s from vm %s (host connection: %s)", device.ConnectedName, position.VmId, device.BusAndPort)
-				disconnectDevice(position, device.ConnectedName)
+				DisconnectDevice(position, device.ConnectedName)
 				time.Sleep(time.Duration(1e9))
 			}
 		}
 	}
 }
 
-func disconnectDevice(position NamedConnection, deviceName string) {
+func DisconnectDevice(position NamedConnection, deviceName string) {
 	_, err := position.Monitor.Run([]byte(fmt.Sprintf(`{"execute":"device_del", "arguments":{"id":"%s"}}`, deviceName)))
 	if err != nil {
 		if err.Error() != fmt.Sprintf("Device '%s' not found", deviceName) {
