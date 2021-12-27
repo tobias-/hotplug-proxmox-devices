@@ -273,7 +273,7 @@ func ListConnectedDevices(connection NamedConnection) (connectedDevices []Connec
 
 				connectedName := otherPath[strings.LastIndex(otherPath, "/")+1:]
 				busAndPort := fmt.Sprintf("%d-%s", hostBus, hostPort)
-				log.Printf("Found device %s on %s @%s with name %s", devicePath, connection.VmId, busAndPort, connectedName)
+				//log.Printf("Found device %s on %s @%s with name %s", devicePath, connection.VmId, busAndPort, connectedName)
 
 				connectedDevices = append(
 					connectedDevices,

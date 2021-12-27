@@ -17,7 +17,7 @@ type ScannedDevice struct {
 }
 
 func Trim(str []byte) (trimmed string) {
-	return strings.Trim(string(str), "\n")
+	return strings.Trim(string(str), "\n \r")
 }
 
 func ScanUsbDevices() (scannedDevices []ScannedDevice) {
@@ -63,7 +63,7 @@ func ScanUsbDevices() (scannedDevices []ScannedDevice) {
 					BusId:     find[1],
 					AddressId: Trim(address),
 					PortPath:  find[2],
-					Product:   string(product),
+					Product:   Trim(product),
 				},
 			)
 		}
