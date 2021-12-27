@@ -13,6 +13,7 @@ type ScannedDevice struct {
 	BusId     string
 	AddressId string
 	PortPath  string
+	Product   string
 }
 
 func Trim(str []byte) (trimmed string) {
@@ -49,6 +50,12 @@ func ScanUsbDevices() (scannedDevices []ScannedDevice) {
 				log.Fatalf("Couldn't open %s because %s", addressPath, err)
 			}
 
+			productPath := fmt.Sprintf("%s/%s/product", dirname, filename)
+			product, err := ioutil.ReadFile(productPath)
+			if err != nil {
+				log.Fatalf("Couldn't open %s because %s", productPath, err)
+			}
+
 			scannedDevices = append(
 				scannedDevices,
 				ScannedDevice{
@@ -56,6 +63,7 @@ func ScanUsbDevices() (scannedDevices []ScannedDevice) {
 					BusId:     find[1],
 					AddressId: Trim(address),
 					PortPath:  find[2],
+					Product:   product,
 				},
 			)
 		}

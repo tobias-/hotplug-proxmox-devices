@@ -11,6 +11,7 @@ type ConnectedDeviceWithVidPid struct {
 	OtherPath     string `yaml:"otherPath"`
 	BusAndPort    string `yaml:"busAndPort"`
 	VidPid        string `yaml:"vidPid"`
+	Product       string `yaml:"product"`
 }
 
 func ListConnectedDevicesWithVidPid(connection NamedConnection) (ConnectedDevices []ConnectedDeviceWithVidPid) {
@@ -18,11 +19,11 @@ func ListConnectedDevicesWithVidPid(connection NamedConnection) (ConnectedDevice
 	connectedDevices := ListConnectedDevices(connection)
 	devices := make([]ConnectedDeviceWithVidPid, len(connectedDevices))
 	for idx, device := range connectedDevices {
-		var vidPid string
+		var foundScannedDevice ScannedDevice
 		for _, scannedDevice := range scannedDevices {
 			busAndPort := fmt.Sprintf("%s-%s", scannedDevice.BusId, scannedDevice.PortPath)
 			if busAndPort == device.BusAndPort {
-				vidPid = scannedDevice.VidPid
+				foundScannedDevice = scannedDevice
 				break
 			}
 		}
@@ -32,7 +33,8 @@ func ListConnectedDevicesWithVidPid(connection NamedConnection) (ConnectedDevice
 			QomTreePath:   connectedDevices[idx].ConnectedName,
 			OtherPath:     connectedDevices[idx].ConnectedName,
 			BusAndPort:    connectedDevices[idx].ConnectedName,
-			VidPid:        vidPid,
+			VidPid:        foundScannedDevice.VidPid,
+			Product:       foundScannedDevice.Product,
 		}
 	}
 	return devices
