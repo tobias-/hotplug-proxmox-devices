@@ -53,7 +53,7 @@ func ScanUsbDevices() (scannedDevices []ScannedDevice) {
 			productPath := fmt.Sprintf("%s/%s/product", dirname, filename)
 			product, err := ioutil.ReadFile(productPath)
 			if err != nil {
-				log.Fatalf("Couldn't open %s because %s", productPath, err)
+				product = make([]byte, 0)
 			}
 
 			scannedDevices = append(
