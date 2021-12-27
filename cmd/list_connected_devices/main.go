@@ -34,12 +34,12 @@ func main() {
 	scannedDevices := lib.ScanUsbDevices()
 	connectedDevices := lib.ListConnectedDevices(connection)
 	devices := make([]ConnectedDeviceWithVidPid, len(connectedDevices))
-	for idx, device := range devices {
+	for idx, device := range connectedDevices {
 		var vidPid string
 		for _, scannedDevice := range scannedDevices {
 			busAndPort := fmt.Sprintf("%s-%s", scannedDevice.BusId, scannedDevice.PortPath)
 			if busAndPort == device.BusAndPort {
-				vidPid = device.VidPid
+				vidPid = scannedDevice.VidPid
 				break
 			} else {
 				log.Printf("%s vs %s", busAndPort, device.BusAndPort)
