@@ -63,7 +63,7 @@ func ScanUsbDevices() (scannedDevices []ScannedDevice) {
 					BusId:     find[1],
 					AddressId: Trim(address),
 					PortPath:  find[2],
-					Product:   product,
+					Product:   string(product),
 				},
 			)
 		}
