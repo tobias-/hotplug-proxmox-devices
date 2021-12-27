@@ -26,10 +26,10 @@ type CommandWithArgs struct {
 
 type ConnectedDevice struct {
 	// e.g. auto_0
-	connectedName string
-	qomTreePath   string
-	otherPath     string
-	busAndPort    string
+	connectedName string `yaml:"connectedName"`
+	qomTreePath   string `yaml:"qomTreePath"`
+	otherPath     string `yaml:"otherPath"`
+	busAndPort    string `yaml:"busAndPort"`
 }
 
 type QomListProperties struct {
