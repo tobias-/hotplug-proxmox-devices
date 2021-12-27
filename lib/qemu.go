@@ -26,10 +26,10 @@ type CommandWithArgs struct {
 
 type ConnectedDevice struct {
 	// e.g. auto_0
-	connectedName string `yaml:"connectedName"`
-	qomTreePath   string `yaml:"qomTreePath"`
-	otherPath     string `yaml:"otherPath"`
-	busAndPort    string `yaml:"busAndPort"`
+	ConnectedName string `yaml:"connectedName"`
+	QomTreePath   string `yaml:"qomTreePath"`
+	OtherPath     string `yaml:"otherPath"`
+	BusAndPort    string `yaml:"busAndPort"`
 }
 
 type QomListProperties struct {
@@ -95,8 +95,8 @@ func ReconnectDevicesToCorrectVM(
 ) {
 	mappedDevices := make(map[string]ConnectedDevice)
 	for _, device := range ListConnectedDevices(targetPositionStruct) {
-		if device.connectedName != "" {
-			mappedDevices[device.connectedName] = device
+		if device.ConnectedName != "" {
+			mappedDevices[device.ConnectedName] = device
 		}
 	}
 	disconnectDevices(positions, targetDevices, mappedDevices, targetPositionStruct)
@@ -108,8 +108,8 @@ func disconnectDevices(positions []NamedConnection, targetDevices []TargetDevice
 	for _, position := range positions {
 		if position.Monitor != nil && targetPositionStruct != position {
 			for _, device := range ListConnectedDevices(position) {
-				log.Printf("Disconnecting device %s from vm %s (host connection: %s)", device.connectedName, position.VmId, device.busAndPort)
-				disconnectDevice(position, device.connectedName)
+				log.Printf("Disconnecting device %s from vm %s (host connection: %s)", device.ConnectedName, position.VmId, device.BusAndPort)
+				disconnectDevice(position, device.ConnectedName)
 				time.Sleep(time.Duration(1e9))
 			}
 		}
@@ -149,7 +149,7 @@ func ConnectDevices(targetPositionStruct NamedConnection, targetDevices []Target
 		for _, scannedDevice := range scannedDevices {
 			if strings.HasPrefix(scannedDevice.VidPid, targetDevice.VidPid) {
 				deviceName := fmt.Sprintf("auto_%d", idx)
-				if devices[deviceName].connectedName != "" {
+				if devices[deviceName].ConnectedName != "" {
 					log.Printf("%s is already connected to %s as %s", scannedDevice.VidPid, targetPositionStruct.VmId, deviceName)
 					continue
 				}
@@ -278,10 +278,10 @@ func ListConnectedDevices(connection NamedConnection) (connectedDevices []Connec
 				connectedDevices = append(
 					connectedDevices,
 					ConnectedDevice{
-						connectedName: connectedName,
-						qomTreePath:   devicePath,
-						otherPath:     otherPath,
-						busAndPort:    busAndPort,
+						ConnectedName: connectedName,
+						QomTreePath:   devicePath,
+						OtherPath:     otherPath,
+						BusAndPort:    busAndPort,
 					},
 				)
 			}
