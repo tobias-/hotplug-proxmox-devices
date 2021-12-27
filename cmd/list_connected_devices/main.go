@@ -1,21 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"gopkg.in/yaml.v3"
 	"hotplug-proxmox-devices/lib"
 	"log"
 	"os"
 )
-
-type ConnectedDeviceWithVidPid struct {
-	// e.g. auto_0
-	ConnectedName string `yaml:"connectedName"`
-	QomTreePath   string `yaml:"qomTreePath"`
-	OtherPath     string `yaml:"otherPath"`
-	BusAndPort    string `yaml:"busAndPort"`
-	VidPid        string `yaml:"vidPid"`
-}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -31,33 +21,10 @@ func main() {
 		Monitor: tmp,
 		VmId:    vmId,
 	}
-	scannedDevices := lib.ScanUsbDevices()
-	connectedDevices := lib.ListConnectedDevices(connection)
-	devices := make([]ConnectedDeviceWithVidPid, len(connectedDevices))
-	for idx, device := range connectedDevices {
-		var vidPid string
-		for _, scannedDevice := range scannedDevices {
-			busAndPort := fmt.Sprintf("%s-%s", scannedDevice.BusId, scannedDevice.PortPath)
-			if busAndPort == device.BusAndPort {
-				vidPid = scannedDevice.VidPid
-				break
-			} else {
-				log.Printf("%s vs %s", busAndPort, device.BusAndPort)
-			}
-		}
+	devices := lib.ListConnectedDevicesWithVidPid(connection)
 
-		devices[idx] = ConnectedDeviceWithVidPid{
-			ConnectedName: connectedDevices[idx].ConnectedName,
-			QomTreePath:   connectedDevices[idx].ConnectedName,
-			OtherPath:     connectedDevices[idx].ConnectedName,
-			BusAndPort:    connectedDevices[idx].ConnectedName,
-			VidPid:        vidPid,
-		}
-	}
-
-	err = yaml.NewEncoder(log.Writer()).Encode(connectedDevices)
+	err = yaml.NewEncoder(log.Writer()).Encode(devices)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
-
 }
