@@ -38,8 +38,9 @@ The format is `<VMID>:<Bus>-<Port>`, i.e. `100:3-6.1.4`. Switch the KVM-switch t
 ```shell
 git clone https://github.com/tobias-/hotplug-proxmox-devices
 cd hotplug-proxmox-devices
-go build -o hotplug-proxmox-devices *.go
-cp hotplug-proxmox-devices /usr/local/sbin/
+go build all
+# (optional)
+go install all
 ```
 
 ### Setting up script

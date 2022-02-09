@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/tobias-/hotplug-proxmox-devices/lib"
 	"gopkg.in/yaml.v3"
-	"hotplug-proxmox-devices/lib"
 	"log"
 	"os"
 )

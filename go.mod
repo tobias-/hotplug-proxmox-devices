@@ -1,4 +1,4 @@
-module github.com/tobias-hotplug-proxmox-devices
+module github.com/tobias-/hotplug-proxmox-devices
 
 go 1.13
 
